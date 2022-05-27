@@ -20,6 +20,7 @@ class LrpExplainer:
         self.eps = 1e-16
 
     def check_bool(self, x):
+        # This function returns true, if either a single bool variable or an array of bools contains any true value
         if type(x) == np.ndarray:
             return x.any()
         else:
@@ -33,9 +34,11 @@ class LrpExplainer:
         return c
 
     def relu(self, matrix):
+        # Relu implementation returning 0 or the maximum value of a matrix
         return np.maximum(0,matrix)
 
     def get_outputs(self, image, model):
+        # Based on the input data, this function returns all layers' outputs
         outputs = []
         for i in range(0,len(model.layers)):
             layer_output = K.function([model.layers[0].input],
@@ -44,6 +47,7 @@ class LrpExplainer:
         return outputs
 
     def get_inputs(self, image, model):
+        # Based on the input data, this function returns all layers' inputs
         inputs = []
         for i in range(0,len(model.layers)):
             layer_input = K.function([model.layers[0].input],
@@ -52,6 +56,7 @@ class LrpExplainer:
         return inputs
 
     def get_weights(self, model):
+        # Based on the input data, this function returns all layers' weights
         weights = []
         for i in range(0,len(model.layers)):
             try:
@@ -61,6 +66,7 @@ class LrpExplainer:
         return weights
 
     def get_biases(self, model):
+        # Based on the input data, this function returns all layers' biases
         biases = []
         for i in range(0,len(model.layers)):
             try:
@@ -69,7 +75,9 @@ class LrpExplainer:
                 biases.append(None)
         return biases
 
-    #Layer specific LRP Rules
+    # Layer specific LRP Rules
+    # The choice what rule is used per layer is done in the LRP process
+    # For the basic lrp-rules, https://git.tu-berlin.de/gmontavon/lrp-tutorial was used as source and inspiration
 
     def relprop_lin_0(self, layer, R, inputs, weights, biases):
         Z = np.matmul(inputs[layer],weights[layer]) + biases[layer]
@@ -78,15 +86,14 @@ class LrpExplainer:
         R = C*inputs[layer]
         return R
 
-    def relprop_lin_eps(self, layer, R, inputs, weights, biases): #delete biases
-        Z = np.matmul(inputs[layer],weights[layer]) + biases[layer] + self.eps #delete biases
+    def relprop_lin_eps(self, layer, R, inputs, weights, biases): 
+        Z = np.matmul(inputs[layer],weights[layer]) + biases[layer] + self.eps 
         S = self.div0(R,Z)
         C = np.matmul(S,weights[layer].T)
         R = C*inputs[layer]
         return R
 
     def relprop_lin_ab(self, layer, R, inputs, outputs, weights, biases, a, b):
-        # print("AB Rule for layer ",layer, " with shape ", inputs[layer].shape)
         old_err_state = np.seterr(divide='raise')
         ignored_states = np.seterr(**old_err_state)
         mask_p = weights[layer].copy()
@@ -96,13 +103,12 @@ class LrpExplainer:
         Z_p = np.matmul(inputs[layer],weights[layer]*mask_p)+biases[layer]*(biases[layer]>=0)
         Z_p = Z_p + (np.ones(Z_p.shape)*self.eps)*((Z_p)>0)
         Z_n = np.matmul(inputs[layer],weights[layer]*mask_n)+biases[layer]*(biases[layer]<0)
-        # print(Z_n.min()," und max : ", Z_n.max())
         Z_n = Z_n - (np.ones(Z_n.shape)*self.eps)*((Z_n)<0)
         S_p = self.div0(R,Z_p)
         S_n = self.div0(R,Z_n)
         C_p = np.matmul(S_p,(weights[layer]*mask_p).T)
         C_n = np.matmul(S_n,(weights[layer]*mask_n).T)
-        R = (C_p*inputs[layer]*a+C_n*inputs[layer]*b) # abfix
+        R = (C_p*inputs[layer]*a+C_n*inputs[layer]*b) 
         return R
 
     def relprop_flatten(self, layer,R, inputs):
@@ -135,6 +141,7 @@ class LrpExplainer:
         return R
 
     def relprop_pooling1(self, layer, R, inputs, outputs, model):
+        # Returns the identical values as relprop_pooling, however works faster due to utilizing Keras functions
         pool_s = tuple([1]+list(model.layers[layer].get_config()["pool_size"])+[1])
         padding = model.layers[layer].get_config()["padding"]
         placeholder = K.eval(gen_nn_ops.max_pool_grad_v2(inputs[layer], outputs[layer], R, pool_s, pool_s, padding=padding.upper()))
@@ -142,6 +149,7 @@ class LrpExplainer:
         return R
 
     def relprop_pooling1_avg(self, layer, R, inputs, outputs, model):
+        # Returns the identical values as relprop_pooling_avg, however works faster due to utilizing Keras functions
         pool_s = tuple([1]+list(model.layers[layer].get_config()["pool_size"])+[1])
         padding = model.layers[layer].get_config()["padding"]
         placeholder = K.eval(gen_nn_ops.avg_pool_grad(inputs[layer].shape, R, pool_s, pool_s, padding=padding.upper()))
@@ -150,7 +158,7 @@ class LrpExplainer:
 
     def relprop_conv2d_eps(self, layer, R, inputs, weights, biases, model):
         padding = model.layers[layer].get_config()["padding"]
-        Z = K.eval(K.conv2d(tf.constant(inputs[layer]),tf.constant(weights[layer]),strides=(1,1), padding=padding))# + biases[layer]+self.eps
+        Z = K.eval(K.conv2d(tf.constant(inputs[layer]),tf.constant(weights[layer]),strides=(1,1), padding=padding))
         Z = Z + biases[layer]*(Z!=0)
         Z = Z + (np.ones(Z.shape)*self.eps)*(Z!=0)
         S = self.div0(R,Z)
@@ -165,7 +173,7 @@ class LrpExplainer:
         W_pos = np.maximum(0,weights[layer])
         W_neg = np.minimum(0,weights[layer])
         padding = model.layers[layer].get_config()["padding"]
-        Z = K.eval(K.conv2d(tf.constant(inputs[layer]),tf.constant(weights[layer]),strides=(1,1), padding=padding)) #+ biases[layer]
+        Z = K.eval(K.conv2d(tf.constant(inputs[layer]),tf.constant(weights[layer]),strides=(1,1), padding=padding))
         Z = Z - K.eval(K.conv2d(tf.constant(L),tf.constant(W_pos),strides=(1,1), padding=padding))
         Z = Z - K.eval(K.conv2d(tf.constant(H),tf.constant(W_neg),strides=(1,1), padding=padding))
         S = self.div0(R,Z)
@@ -207,7 +215,7 @@ class LrpExplainer:
         C_p = C_pp + C_pn
         C_n = C_npn + C_nnp
 
-        R = (C_p*a+C_n*b) #abfix
+        R = (C_p*a+C_n*b)
         return R
 
     def relprop_batch_norm(self, layer, R, inputs, outputs, model):
@@ -246,14 +254,11 @@ class LrpExplainer:
                         R = self.relprop_conv2d_first(i, R, inputs, weights, biases, self.model)
                     elif self.process[i] == "ab":
                         R = self.relprop_conv2d_ab(i, R, inputs, weights, biases, self.model, self.a, self.b)
-                # R = self.relprop_conv2d_eps(i, R, inputs, weights, biases, self.model)
-                # R = self.relprop_conv2d_ab(i, R, inputs, weights, biases, self.model, a, b)
                 if self.verbose: print("In first layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
                 rs.append(R)
                 break
 
             elif "Dense" in str(self.model.layers[i]):
-                # R = relprop_lin_ab(i, R, inputs, outputs, weights, biases, a, b) #ab
                 if not self.process:
                     if self.verbose: print("Default ab Rule for dense used")
                     R = self.relprop_lin_ab(i, R, inputs, outputs, weights, biases, self.a, self.b) #ab
@@ -281,8 +286,6 @@ class LrpExplainer:
                 R = self.relprop_pooling1_avg(i ,R , inputs, outputs, self.model)
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             elif "Conv2D" in str(self.model.layers[i]):
-                # R = relprop_conv2d_wpn(i, R, inputs, weights, biases, model, a, b)
-                # R = relprop_conv2d_eps(i, R, inputs, weights, biases, model)
                 if not self.process:
                     R = self.relprop_conv2d_ab(i, R, inputs, weights, biases, self.model, self.a, self.b)
                 else:
@@ -301,7 +304,11 @@ class LrpExplainer:
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             rs.append(R)
         rs.reverse()
-        return R, inputs, outputs, weights, biases, rs
+
+        if self.verbose:
+            return R, inputs, outputs, weights, biases, rs
+        else:
+            return R
 
     # attack functions
 
@@ -376,7 +383,6 @@ class LrpExplainer:
                     flipping_mask_one = R==5
                     flipping_mask_one[R==flipping_list[-i]]=True
                     flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]-np.sign(flipped_img[flipping_mask[0,:,:,:]])*eps
-            # flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]*-1
             if log: 
                 y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0])
                 r_log.append(R)
@@ -414,24 +420,6 @@ class LrpExplainer:
         else:
             return flipped_img
 
-
-    def lrp_mask_attack(self, img, label, epsilon, log=False):
-        
-        if log: 
-            y = self.model.predict(img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
-        flipped_img = img.copy()
-        R = self.relprop(flipped_img, label)
-        mask = np.sign(R)
-        flipped_img = (flipped_img + mask * epsilon).reshape(28,28,1)
-
-        if log: 
-            y_new = self.model.predict(flipped_img.reshape(1,28,28,1))[label.astype(bool).reshape(1,10)][0]
-        
-        if log:
-            return flipped_img, y, y_new
-        else:
-            return flipped_img
-
     def create_adversarial_pattern(self, input_image, input_label):
         # Codebase from https://www.tensorflow.org/tutorials/generative/adversarial_fgsm
         loss_object = tf.keras.losses.CategoricalCrossentropy()
@@ -460,17 +448,13 @@ class LrpExplainer:
             flipping_list = np.sort(R, axis=None)[:]
             i = 1
             limit = batch+1
-            # print(j)
             while i < limit:
-                # print(i, limit)
                 if flipping_list[-i]>0:
                     if self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[-i]] < -1)) or self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[-i]] > 1)):
                         i = i+1
                         limit = limit+1
-                        # print("limit reached")
                         next
                     flipping_mask[R==flipping_list[-i]]=True
-                    # flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]+pattern[flipping_mask[:,:,:]]*eps
                 i = i+1  
             flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]+pattern[flipping_mask[:,:,:]]*eps
             flipping_mask = R==5
@@ -481,7 +465,6 @@ class LrpExplainer:
                     if self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[i]] < -1)) or self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[i]] > 1)):
                         i = i+1
                         limit = limit+1
-                        # print("limit reached")
                         next
                     flipping_mask[R==flipping_list[i]]=True
                 i = i+1
