@@ -105,21 +105,6 @@ class LrpExplainer:
         R = (C_p*inputs[layer]*a+C_n*inputs[layer]*b) # abfix
         return R
 
-    def relprop_lin_wpn(self, layer, R, inputs, outputs, weights, biases, a, b):
-        old_err_state = np.seterr(divide='raise')
-        ignored_states = np.seterr(**old_err_state)
-        Z_p = np.matmul(inputs[layer],weights[layer]*(weights[layer]>=0))+biases[layer]*(biases[layer]>=0)
-        Z_p = Z_p + (np.ones(Z_p.shape)*self.eps)*((Z_p)>0)
-        Z_n = np.matmul(inputs[layer],weights[layer]*(weights[layer]<0))-biases[layer]*(biases[layer]<0)
-        Z_n = Z_n - (np.ones(Z_n.shape)*self.eps)*((Z_n)<0)
-        S_p = self.div0(R,Z_p)
-        S_n = self.div0(R,Z_n)
-        C_p = np.matmul(S_p,(weights[layer]*(weights[layer]>=0)).T)
-        C_n = np.matmul(S_n,(weights[layer]*(weights[layer]<0)).T)
-        R = (C_p*inputs[layer]*a+C_n*inputs[layer]*b) #abfix
-        return R
-
-
     def relprop_flatten(self, layer,R, inputs):
         return R.reshape(inputs[layer].shape)
 
@@ -173,32 +158,6 @@ class LrpExplainer:
         R = C*inputs[layer]
         return R
 
-    def relprop_conv2d_eps_l(self, layer, R, inputs, weights, biases, model):
-        padding = model.layers[layer].get_config()["padding"]
-        N = 1
-        a = 2
-        b = 1
-        Hout = R.shape[1]
-        Wout = R.shape[2]
-        NF = R.shape[3]
-        hf, wf, df, NF = weights[layer].shape
-        hstride, wstride = model.layers[layer].get_config()["strides"]
-        Rx = np.zeros_like(inputs[layer], dtype=np.float)
-        
-        print(hf, wf, hstride, wstride)
-        for i in range(Hout):
-            # print(i)
-            for j in range(Wout):
-                # print(j)
-                Z = weights[layer][np.newaxis,...] * inputs[layer][:,i*hstride:i*hstride+hf, j*wstride:j*wstride+wf, :, np.newaxis]
-
-                Zs = Z.sum(axis=(1,2,3), keepdims=True) + biases[layer][np.newaxis, np.newaxis, np.newaxis, np.newaxis, ...]
-                Zs = Zs + ((Zs>=0)*self.eps)
-                Rx[:,i*hstride:i*hstride+hf:, j*wstride:j*wstride+wf:, :] += ((Z/Zs) * R[:,i:i+1, j:j+1, np.newaxis, :]).sum(axis=4)
-                
-        
-        return Rx
-
     def relprop_conv2d_first(self, layer, R, inputs, weights, biases, model):
         X = inputs[layer]
         L = inputs[layer]*0 + -1 #-1
@@ -216,7 +175,6 @@ class LrpExplainer:
         C_n = K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,W_neg,S, (1,1,1,1),padding=padding.upper() ))
         R = C*inputs[layer] - C_p*L - C_n*H
         return R
-
 
     def relprop_conv2d_ab(self, layer, R, inputs, weights, biases, model, a, b):
         padding = model.layers[layer].get_config()["padding"]
@@ -251,21 +209,6 @@ class LrpExplainer:
 
         R = (C_p*a+C_n*b) #abfix
         return R
-
-    def relprop_conv2d_wpn(self, layer, R, inputs, weights, biases, model, a, b):
-        padding = model.layers[layer].get_config()["padding"]
-        Z_p = K.eval(K.conv2d(tf.constant(inputs[layer]),tf.constant(weights[layer]),strides=(1,1), padding=padding))*(K.eval(K.conv2d(tf.constant(inputs[layer]),tf.constant(weights[layer]),strides=(1,1), padding=padding))>=0)+biases[layer]*(biases[layer]>=0)
-        Z_p = Z_p + (np.ones(Z_p.shape)*self.eps)*((Z_p)>0)
-        Z_n = K.eval(K.conv2d(tf.constant(inputs[layer]),tf.constant(weights[layer]),strides=(1,1), padding=padding))*(K.eval(K.conv2d(tf.constant(inputs[layer]),tf.constant(weights[layer]),strides=(1,1), padding=padding))<0)+biases[layer]*(biases[layer]<0)
-        Z_n = Z_n - (np.ones(Z_n.shape)*self.eps)*((Z_n)<0)
-        S_p = self.div0(R,Z_p)
-        S_n = self.div0(R,Z_n)
-        C_p = (K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,weights[layer],S_p, (1,1,1,1),padding=padding.upper() ))*inputs[layer]) * ((K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,weights[layer],S_p, (1,1,1,1),padding=padding.upper() ))*inputs[layer])>=0)
-        C_n = (K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,weights[layer],S_n, (1,1,1,1),padding=padding.upper() ))*inputs[layer]) * ((K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,weights[layer],S_n, (1,1,1,1),padding=padding.upper() ))*inputs[layer])<0)
-        R = (C_p*a+C_n*b) #abfix
-
-        return R
-
 
     def relprop_batch_norm(self, layer, R, inputs, outputs, model):
         weights = model.layers[layer].get_weights()
@@ -445,32 +388,6 @@ class LrpExplainer:
         else:
             return flipped_img
 
-    # def eps_attack(self, img, label, flips, eps, batch, log=False):
-    #     if log:
-    #         y_log = []
-    #         y_log.append(self.model.predict(img.reshape([1]+list(img.shape)))[0])
-    #         y = self.model.predict(img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
-    #         r_log = []
-    #         img_log = []
-    #     flipped_img = img.copy()
-    #     for j in range(0,flips):
-    #         R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, label)
-    #         flipping_mask = R==5
-    #         flipping_list = np.sort(R, axis=None)[:]
-    #         if flipping_list[-j]>0:
-    #             flipping_mask[R==flipping_list[-j]]=True
-    #         flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]*-1
-    #         if log: 
-    #             y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0])
-    #             r_log.append(R)
-    #             temp = flipped_img.copy()
-    #             img_log.append(temp)
-    #     if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
-    #     if log:
-    #         return flipped_img, y, y_new, y_log, r_log, img_log
-    #     else:
-    #         return flipped_img
-
     def flip_attack_targeted(self, img, target, flips, log=False):
         if log:
             y_log = []
@@ -515,20 +432,6 @@ class LrpExplainer:
         else:
             return flipped_img
 
-
-    def create_adversarial_pattern_surrogate(self, input_image, input_label):
-        # Codebase from https://www.tensorflow.org/tutorials/generative/adversarial_fgsm
-        loss_object = tf.keras.losses.CategoricalCrossentropy()
-        input_image = tf.convert_to_tensor(input_image.reshape([1]+list(input_image.shape)))
-        surrmodel = Model(inputs = self.model.input, outputs = self.model.get_layer(self.model.layers[-2].name).output) # delete
-        with tf.GradientTape() as tape:
-            tape.watch(input_image)        
-            prediction = surrmodel(input_image) # model
-            loss = loss_object(input_label, prediction)
-        gradient = tape.gradient(loss, input_image)
-        signed_grad = tf.sign(gradient)
-        return signed_grad, gradient
-
     def create_adversarial_pattern(self, input_image, input_label):
         # Codebase from https://www.tensorflow.org/tutorials/generative/adversarial_fgsm
         loss_object = tf.keras.losses.CategoricalCrossentropy()
@@ -540,21 +443,6 @@ class LrpExplainer:
         gradient = tape.gradient(loss, input_image)
         signed_grad = tf.sign(gradient)
         return signed_grad, gradient
-
-    def create_adversarial_pattern_noise(self, input_image, input_label):
-        # Codebase from https://www.tensorflow.org/tutorials/generative/adversarial_fgsm
-        loss_object = tf.keras.losses.CategoricalCrossentropy()
-        input_image = tf.convert_to_tensor(input_image.reshape([1]+list(input_image.shape)))
-        with tf.GradientTape() as tape:
-            tape.watch(input_image)        
-            prediction = self.model(input_image)
-            loss = loss_object(input_label, prediction)
-        gradient = tape.gradient(loss, input_image)
-        signed_grad = tf.sign(gradient)
-        if signed_grad.numpy().sum() == 0:
-            signed_grad = np.sign(np.random.normal(0,1,signed_grad.numpy().shape))
-        return signed_grad, gradient
-
 
     def lrp_attack_batch_grad(self, img, label, flips, batch, eps, log=False):
         if log:
@@ -609,121 +497,6 @@ class LrpExplainer:
             return flipped_img, y, y_new, y_log, r_log, img_log
         else:
             return flipped_img
-
-
-    def lrp_attack_batch_grad_targeted(self, img, label, flips, batch, eps, log=False):
-        if log:
-            y_log = []
-            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)))[0])
-            y = self.model.predict(img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
-            r_log = []
-            img_log = []
-        flipped_img = img.copy()
-        pattern, _ = self.create_adversarial_pattern(img, label)
-        pattern = pattern*-1
-        for j in range(0,flips):
-            pattern, _ = self.create_adversarial_pattern(flipped_img, label)
-            R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, label)
-            flipping_mask = R==5
-            flipping_list = np.sort(R, axis=None)[:]
-            i = 1
-            limit = batch+1
-            # print(j)
-            while i < limit:
-                # print(i, limit)
-                if flipping_list[-i]>0:
-                    if self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[-i]] < -1)) or self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[-i]] > 1)):
-                        i = i+1
-                        limit = limit+1
-                        # print("limit reached")
-                        next
-                    flipping_mask[R==flipping_list[-i]]=True
-                    # flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]+pattern[flipping_mask[:,:,:]]*eps
-                i = i+1  
-            flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]+pattern[flipping_mask[:,:,:]]*eps
-            flipping_mask = R==5
-            i = 1
-            limit = batch+1
-            while i < limit:
-                if flipping_list[i]<0:
-                    if self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[i]] < -1)) or self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[i]] > 1)):
-                        i = i+1
-                        limit = limit+1
-                        # print("limit reached")
-                        next
-                    flipping_mask[R==flipping_list[i]]=True
-                i = i+1
-            flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]+pattern[flipping_mask[:,:,:]]*eps
-            flipped_img = np.clip(flipped_img, -1, 1)
-            if log: 
-                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0])
-                r_log.append(R)
-                temp = flipped_img.copy()
-                img_log.append(temp)
-        if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
-        if log:
-            return flipped_img, y, y_new, y_log, r_log, img_log
-        else:
-            return flipped_img
-
-    def ifgsm_attack_batch_max_grad(self, img, label, flips, batch, eps, log=False):
-        if log:
-            y_log = []
-            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)))[0])
-            y = self.model.predict(img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
-            r_log = []
-            img_log = []
-        flipped_img = img.copy()
-        pattern, grad = self.create_adversarial_pattern(img, label)
-        for j in range(0,flips):
-            pattern, grad = self.create_adversarial_pattern(flipped_img, label)
-            # R, inputs, outputs, weights, biases, rs = relprop(self.model,flipped_img, label, self.a, self.b, self.verbose, self.process)
-            R = grad.numpy()
-            flipping_mask = R==5
-            flipping_list = np.sort(R, axis=None)[:]
-            i = 1
-            limit = batch+1
-            # print(j)
-            while i < limit:
-                # print(i, limit)
-                if flipping_list[-i]>0:
-                    if self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[-i]] < -1)) or self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[-i]] > 1)):
-                        i = i+1
-                        limit = limit+1
-                        # print("limit reached")
-                        next
-                    flipping_mask[R==flipping_list[-i]]=True
-                    # flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]+pattern[flipping_mask[:,:,:]]*eps
-                i = i+1  
-            flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]+pattern[flipping_mask[:,:,:]]*eps
-            flipping_mask = R==5
-            i = 1
-            limit = batch+1
-            while i < limit:
-                if flipping_list[i]<0:
-                    if self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[i]] < -1)) or self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[i]] > 1)):
-                        i = i+1
-                        limit = limit+1
-                        # print("limit reached")
-                        next
-                    flipping_mask[R==flipping_list[i]]=True
-                i = i+1
-            flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]+pattern[flipping_mask[:,:,:]]*eps
-            flipped_img = np.clip(flipped_img, -1, 1)
-            if log: 
-                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0])
-                r_log.append(R)
-                temp = flipped_img.copy()
-                img_log.append(temp)
-        if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
-        if log:
-            return flipped_img, y, y_new, y_log, r_log, img_log
-        else:
-            return flipped_img
-
-
-
-
 
     def ifgsm_attack(self, img, label, flips, eps, log=False):
         if log:
