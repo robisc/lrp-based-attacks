@@ -309,7 +309,11 @@ class LrpExplainer:
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             rs.append(R)
         rs.reverse()
-        return R, inputs, outputs, weights, biases, rs
+
+        if self.verbose:
+            return R, inputs, outputs, weights, biases, rs
+        else:
+            return R
 
     # attack functions
 
