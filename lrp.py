@@ -420,24 +420,6 @@ class LrpExplainer:
         else:
             return flipped_img
 
-
-    def lrp_mask_attack(self, img, label, epsilon, log=False):
-        
-        if log: 
-            y = self.model.predict(img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
-        flipped_img = img.copy()
-        R = self.relprop(flipped_img, label)
-        mask = np.sign(R)
-        flipped_img = (flipped_img + mask * epsilon).reshape(28,28,1)
-
-        if log: 
-            y_new = self.model.predict(flipped_img.reshape(1,28,28,1))[label.astype(bool).reshape(1,10)][0]
-        
-        if log:
-            return flipped_img, y, y_new
-        else:
-            return flipped_img
-
     def create_adversarial_pattern(self, input_image, input_label):
         # Codebase from https://www.tensorflow.org/tutorials/generative/adversarial_fgsm
         loss_object = tf.keras.losses.CategoricalCrossentropy()
@@ -466,17 +448,13 @@ class LrpExplainer:
             flipping_list = np.sort(R, axis=None)[:]
             i = 1
             limit = batch+1
-            # print(j)
             while i < limit:
-                # print(i, limit)
                 if flipping_list[-i]>0:
                     if self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[-i]] < -1)) or self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[-i]] > 1)):
                         i = i+1
                         limit = limit+1
-                        # print("limit reached")
                         next
                     flipping_mask[R==flipping_list[-i]]=True
-                    # flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]+pattern[flipping_mask[:,:,:]]*eps
                 i = i+1  
             flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]+pattern[flipping_mask[:,:,:]]*eps
             flipping_mask = R==5
@@ -487,7 +465,6 @@ class LrpExplainer:
                     if self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[i]] < -1)) or self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[i]] > 1)):
                         i = i+1
                         limit = limit+1
-                        # print("limit reached")
                         next
                     flipping_mask[R==flipping_list[i]]=True
                 i = i+1
