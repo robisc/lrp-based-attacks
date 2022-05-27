@@ -254,14 +254,11 @@ class LrpExplainer:
                         R = self.relprop_conv2d_first(i, R, inputs, weights, biases, self.model)
                     elif self.process[i] == "ab":
                         R = self.relprop_conv2d_ab(i, R, inputs, weights, biases, self.model, self.a, self.b)
-                # R = self.relprop_conv2d_eps(i, R, inputs, weights, biases, self.model)
-                # R = self.relprop_conv2d_ab(i, R, inputs, weights, biases, self.model, a, b)
                 if self.verbose: print("In first layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
                 rs.append(R)
                 break
 
             elif "Dense" in str(self.model.layers[i]):
-                # R = relprop_lin_ab(i, R, inputs, outputs, weights, biases, a, b) #ab
                 if not self.process:
                     if self.verbose: print("Default ab Rule for dense used")
                     R = self.relprop_lin_ab(i, R, inputs, outputs, weights, biases, self.a, self.b) #ab
@@ -289,8 +286,6 @@ class LrpExplainer:
                 R = self.relprop_pooling1_avg(i ,R , inputs, outputs, self.model)
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             elif "Conv2D" in str(self.model.layers[i]):
-                # R = relprop_conv2d_wpn(i, R, inputs, weights, biases, model, a, b)
-                # R = relprop_conv2d_eps(i, R, inputs, weights, biases, model)
                 if not self.process:
                     R = self.relprop_conv2d_ab(i, R, inputs, weights, biases, self.model, self.a, self.b)
                 else:
@@ -388,7 +383,6 @@ class LrpExplainer:
                     flipping_mask_one = R==5
                     flipping_mask_one[R==flipping_list[-i]]=True
                     flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]-np.sign(flipped_img[flipping_mask[0,:,:,:]])*eps
-            # flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]*-1
             if log: 
                 y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0])
                 r_log.append(R)
