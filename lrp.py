@@ -321,7 +321,10 @@ class LrpExplainer:
             img_log = []
         flipped_img = img.copy()
         for j in range(0,flips):
-            R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, label)
+            if self.verbose:
+                R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, label)
+            else:
+                R = self.relprop(flipped_img, label)
             flipping_mask = R==5
             flipping_list = np.sort(R, axis=None)[:]
             if flipping_list[-1]>0:
@@ -347,7 +350,10 @@ class LrpExplainer:
             img_log = []
         flipped_img = img.copy()
         for j in range(0,flips):
-            R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, label)
+            if self.verbose:
+                R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, label)
+            else:
+                R = self.relprop(flipped_img, label)
             flipping_mask = R==5
             flipping_list = np.sort(R, axis=None)[:]
             for i in range(1,batch+1):
@@ -374,7 +380,10 @@ class LrpExplainer:
             img_log = []
         flipped_img = img.copy()
         for j in range(0,flips):
-            R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, label)
+            if self.verbose:
+                R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, label)
+            else:
+                R = self.relprop(flipped_img, label)
             flipping_mask = R==5
             flipping_list = np.sort(R, axis=None)[:]
             for i in range(1,batch+1):
@@ -403,7 +412,10 @@ class LrpExplainer:
             img_log = []
         flipped_img = img.copy()
         for j in range(0,flips):
-            R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, target)
+            if self.verbose:
+                R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, label)
+            else:
+                R = self.relprop(flipped_img, label)
             flipping_mask = R==5
             flipping_list = np.sort(R, axis=None)[-1::-1]
             if flipping_list[-1]<0:
@@ -443,7 +455,10 @@ class LrpExplainer:
         pattern, _ = self.create_adversarial_pattern(img, label)
         for j in range(0,flips):
             pattern, _ = self.create_adversarial_pattern(flipped_img, label)
-            R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, label)
+            if self.verbose:
+                R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, label)
+            else:
+                R = self.relprop(flipped_img, label)
             flipping_mask = R==5
             flipping_list = np.sort(R, axis=None)[:]
             i = 1
@@ -516,7 +531,10 @@ class LrpExplainer:
         flipped_img = img.copy()
         means = img.mean(axis = (0,1))
         for j in range(0,flips):
-            R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, label)
+            if self.verbose:
+                R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, label)
+            else:
+                R = self.relprop(flipped_img, label)
             flipping_mask = R==5
             flipping_list = np.sort(R, axis=None)[:]
             for i in range(1,batch+1):
