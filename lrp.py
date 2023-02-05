@@ -413,9 +413,9 @@ class LrpExplainer:
         flipped_img = img.copy()
         for j in range(0,flips):
             if self.verbose:
-                R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, label)
+                R, inputs, outputs, weights, biases, rs = self.relprop(flipped_img, target)
             else:
-                R = self.relprop(flipped_img, label)
+                R = self.relprop(flipped_img, target)
             flipping_mask = R==5
             flipping_list = np.sort(R, axis=None)[-1::-1]
             if flipping_list[-1]<0:
