@@ -27,11 +27,16 @@ def load_dataset(dataset:str):
 
     # Now we extend / preprocess our data
     x_train = (((x_train/255)*2)-1)
-    x_train = np.expand_dims(x_train, axis=-1)
     x_test = (((x_test/255)*2)-1)
-    x_test = np.expand_dims(x_test, axis=-1)
+    if dataset == "MNIST":
+        x_train = np.expand_dims(x_train, axis=-1)
+        x_test = np.expand_dims(x_test, axis=-1)
+    
     y_train = np.eye(np.max(y_train)+1)[y_train]
     y_test = np.eye(np.max(y_test)+1)[y_test]
+    if dataset == "CIFAR10":
+        y_train = y_train.reshape((len(y_train),10))
+        y_test = y_test.reshape((len(y_test),10))
 
     return (x_train, y_train, x_test, y_test)
 
@@ -93,7 +98,7 @@ def create_cnn(dataset: str):
     
     # Compile classifier and adding optimizer
     classifier.compile(optimizer=tf.keras.optimizers.Adam(1e-03), 
-                        loss = ["binary_crossentropy"],
+                        loss = ["categorical_crossentropy"],
                         metrics=["accuracy",tf.keras.metrics.Recall(),tf.keras.metrics.Precision()])
     
     return classifier
@@ -152,20 +157,45 @@ def get_classifier(dataset: str, mode: str, data = "", save_model: bool = False)
         hist =  classifier.fit(datagen.flow(x_train[train], y_train[train], batch_size=batch_size), epochs = epochs,
                                         validation_data = (x_train[val,:], y_train[val,:]))
         
+        print("Extracting history ...")
         keys = hist.history.keys()
-
-        history = pd.DataFrame(hist.history["val_loss"])
+        history = pd.DataFrame(hist.history[[i for i in keys if i.startswith("val_loss")][0]])
         history.columns = ["val_loss"]
-        history["loss"] = hist.history["loss"]
-        history["recall"] = hist.history["recall"]
-        history["val_recall"] = hist.history["val_recall"]
-        history["precision"] = hist.history["precision"]
-        history["val_precision"] = hist.history["val_precision"]
-
+        history["loss"] = hist.history[[i for i in keys if i.startswith("loss")][0]]
+        history["recall"] = hist.history[[i for i in keys if i.startswith("recall")][0]]
+        history["val_recall"] = hist.history[[i for i in keys if i.startswith("val_recall")][0]]
+        history["precision"] = hist.history[[i for i in keys if i.startswith("precision")][0]]
+        history["val_precision"] = hist.history[[i for i in keys if i.startswith("val_precision")][0]]
+        history["accuracy"] = hist.history[[i for i in keys if i.startswith("accuracy")][0]]
+        history["val_accuracy"] = hist.history[[i for i in keys if i.startswith("val_accuracy")][0]]
         history.plot(title = f"Training results on dataset {dataset}")
+        y_pred = classifier.predict(x_test)
+        print(f"The F1-Score on x_test is :{f1(y_test, get_onehot_argmax(y_pred,10)).numpy()}")
 
         if save_model:
             print("Saving model ...")
             tf.keras.models.save_model(classifier, f"{dataset}.hdf5")
         
-        
+    return classifier
+
+
+def get_onehot_argmax(target, num_classes):
+    res = np.array(list(map(np.argmax, target)))
+    res = np.eye(num_classes)[res]
+    return res
+
+def f1(y_true, y_pred):
+    def recall(y_true, y_pred):
+        true_positives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(y_true * y_pred, 0, 1)))
+        possible_positives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(y_true, 0, 1)))
+        recall = true_positives / (possible_positives + tf.keras.backend.epsilon())
+        return recall
+
+    def precision(y_true, y_pred):
+        true_positives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(y_true * y_pred, 0, 1)))
+        predicted_positives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(y_pred, 0, 1)))
+        precision = true_positives / (predicted_positives + tf.keras.backend.epsilon())
+        return precision
+    precision = precision(y_true, y_pred)
+    recall = recall(y_true, y_pred)
+    return 2*((precision*recall)/(precision+recall+tf.keras.backend.epsilon()))
