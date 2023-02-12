@@ -2,6 +2,8 @@ import tensorflow as tf
 import numpy as np
 import os
 import pandas as pd
+from sklearn.metrics import f1_score
+import pytest
 
 def load_dataset(dataset:str):
     """Load dataset from keras datasets
@@ -186,7 +188,7 @@ def get_classifier(dataset: str, mode: str, data = "", save_model: bool = False)
         history["val_accuracy"] = hist.history[[i for i in keys if i.startswith("val_accuracy")][0]]
         history.plot(title = f"Training results on dataset {dataset}")
         y_pred = classifier.predict(x_test)
-        print(f"The F1-Score on x_test is :{f1(y_test, get_onehot_argmax(y_pred,10)).numpy()}")
+        print(f"The F1-Score on x_test is :{f1_score(np.argmax(y_test, axis = 1), np.argmax(get_onehot_argmax(y_pred,10), axis = 1), average = 'macro')}")
 
         if save_model:
             print("Saving model ...")
@@ -212,27 +214,9 @@ def get_onehot_argmax(target, num_classes: int):
     res = np.eye(num_classes)[res]
     return res
 
-def f1(y_true, y_pred):
-    """Calculates F1 Score
+def test_onehot_argmax_for_multiple_inputs():
+    assert (~(get_onehot_argmax([[0.1,0,0,0],[0,0.9,0.1,0],[0,0.9,1,0],[0,0,0,1]], 4) == np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])) ).sum() == 0
 
-    Args:
-        y_true (_type_): actual class labels, expected as onehot
-        y_pred (_type_): predicted class labels, expected as onehot
-    """
-    def recall(y_true, y_pred):
-        true_positives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(y_true * y_pred, 0, 1)))
-        possible_positives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(y_true, 0, 1)))
-        recall = true_positives / (possible_positives + tf.keras.backend.epsilon())
-        return recall
-
-    def precision(y_true, y_pred):
-        true_positives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(y_true * y_pred, 0, 1)))
-        predicted_positives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(y_pred, 0, 1)))
-        precision = true_positives / (predicted_positives + tf.keras.backend.epsilon())
-        return precision
-    precision = precision(y_true, y_pred)
-    recall = recall(y_true, y_pred)
-    return 2*((precision*recall)/(precision+recall+tf.keras.backend.epsilon()))
 
 def transform_image(img):
     """Transforms image from [-1, ... 1] to [0, ..., 1]
