@@ -198,12 +198,27 @@ def get_classifier(dataset: str, mode: str, data = "", save_model: bool = False)
     return classifier
 
 
-def get_onehot_argmax(target, num_classes):
+def get_onehot_argmax(target, num_classes: int):
+    """Returns a matrix in onehot encoding with num_classes columns
+
+    Args:
+        target (): Variable containing your predictions
+        num_classes (int): number of maximum classes (important if a class is not in the target)
+
+    Returns:
+        _type_: Onehot matrix
+    """
     res = np.array(list(map(np.argmax, target)))
     res = np.eye(num_classes)[res]
     return res
 
 def f1(y_true, y_pred):
+    """Calculates F1 Score
+
+    Args:
+        y_true (_type_): actual class labels, expected as onehot
+        y_pred (_type_): predicted class labels, expected as onehot
+    """
     def recall(y_true, y_pred):
         true_positives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(y_true * y_pred, 0, 1)))
         possible_positives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(y_true, 0, 1)))
@@ -220,4 +235,12 @@ def f1(y_true, y_pred):
     return 2*((precision*recall)/(precision+recall+tf.keras.backend.epsilon()))
 
 def transform_image(img):
+    """Transforms image from [-1, ... 1] to [0, ..., 1]
+
+    Args:
+        img (_type_): Input image
+
+    Returns:
+        _type_: Output Image
+    """
     return (img+1)/2
