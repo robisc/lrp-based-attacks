@@ -104,6 +104,22 @@ def create_cnn(dataset: str):
     return classifier
 
 def get_classifier(dataset: str, mode: str, data = "", save_model: bool = False):
+    """Returns a classifier CNN either from file or trains a new one
+
+    Args:
+        dataset (str): String of either MNIST or CIFAR10
+        mode (str): either load or train
+        data (str, optional): If train is chosen, contains all data as tuple (x_train, y_train, x_test, y_test). Defaults to "".
+        save_model (bool, optional): Flag if model should be saved in current folder. Defaults to False.
+
+    Raises:
+        ValueError: Invalid dataset
+        ValueError: Invalid mode
+        TypeError: invalid data input
+
+    Returns:
+        keras model: CNN for further use
+    """
     # Do input validation
     if dataset not in ["MNIST", "CIFAR10"]:
         raise ValueError("Invalid dataset chosen")
@@ -202,3 +218,6 @@ def f1(y_true, y_pred):
     precision = precision(y_true, y_pred)
     recall = recall(y_true, y_pred)
     return 2*((precision*recall)/(precision+recall+tf.keras.backend.epsilon()))
+
+def transform_image(img):
+    return (img+1)/2
