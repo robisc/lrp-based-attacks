@@ -1,13 +1,7 @@
-from keras import backend as K
 import numpy as np
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-from functools import reduce
 import tensorflow as tf
 from tensorflow.python.ops import gen_nn_ops
-from keras.models import Model
-
+from keras import backend as K
 
 class LrpExplainer:
 
@@ -15,12 +9,19 @@ class LrpExplainer:
         self.process = process
         self.model = model
         self.a = a
-        self.b = b   
+        self.b = b
         self.verbose = verbose
         self.eps = 1e-16
 
     def check_bool(self, x):
-        # This function returns true, if either a single bool variable or an array of bools contains any true value
+        """returns true, if either a single bool variable or an array of bools contains any true value 
+
+        Args:
+            x (_type_): list or bool
+
+        Returns:
+            bool: True or False
+        """
         if type(x) == np.ndarray:
             return x.any()
         else:
@@ -77,7 +78,7 @@ class LrpExplainer:
 
     # Layer specific LRP Rules
     # The choice what rule is used per layer is done in the LRP process
-    # For the basic lrp-rules, https://git.tu-berlin.de/gmontavon/lrp-tutorial was used as source and inspiration
+    # For the basic lrp-rules, https://git.tu-berlin.de/gmontavon/lrp-tutorial was used as inspiration
 
     def relprop_lin_0(self, layer, R, inputs, weights, biases):
         Z = np.matmul(inputs[layer],weights[layer]) + biases[layer]

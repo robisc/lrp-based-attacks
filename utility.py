@@ -1,9 +1,10 @@
+import os
+import pytest
 import tensorflow as tf
 import numpy as np
-import os
 import pandas as pd
 from sklearn.metrics import f1_score
-import pytest
+from keras.models import Model
 
 def load_dataset(dataset:str):
     """Load dataset from keras datasets
@@ -28,12 +29,12 @@ def load_dataset(dataset:str):
         (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
 
     # Now we extend / preprocess our data
-    x_train = (((x_train/255)*2)-1)
-    x_test = (((x_test/255)*2)-1)
+    x_train = ((x_train/255)*2)-1
+    x_test = ((x_test/255)*2)-1
     if dataset == "MNIST":
         x_train = np.expand_dims(x_train, axis=-1)
         x_test = np.expand_dims(x_test, axis=-1)
-    
+
     y_train = np.eye(np.max(y_train)+1)[y_train]
     y_test = np.eye(np.max(y_test)+1)[y_test]
     if dataset == "CIFAR10":
@@ -44,7 +45,6 @@ def load_dataset(dataset:str):
 
 # Loading or training a model
 from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Flatten, BatchNormalization
-from keras.models import Model
 
 def create_cnn(dataset: str):
     """Creates the keras CNN for either dataset
@@ -68,11 +68,11 @@ def create_cnn(dataset: str):
         conv2 = Conv2D(32,(3,3),activation="relu", padding="same")(conv1)
     #     bn1 = BatchNormalization()(conv2) # remove
         pool1 = MaxPooling2D(pool_size=(2,2))(conv2)
-        
+
         conv3 = Conv2D(64,(3,3),activation="relu", padding="same")(pool1)
         conv4 = Conv2D(64,(3,3),activation="relu", padding="same")(conv3)
     #     bn2 = BatchNormalization()(conv4) # remove
-        pool2 = MaxPooling2D(pool_size=(2,2))(conv4)    
+        pool2 = MaxPooling2D(pool_size=(2,2))(conv4)
 
         flat = Flatten()(pool2)
         dense1 = Dense(units=128, activation ="sigmoid")(flat)
@@ -83,26 +83,26 @@ def create_cnn(dataset: str):
         conv1 = Conv2D(32,(3,3),activation="relu", padding="same")(inputs)
         conv2 = Conv2D(32,(3,3),activation="relu", padding="same")(conv1)
         pool1 = MaxPooling2D(pool_size=(2,2))(conv2)
-        
+
         conv3 = Conv2D(64,(3,3),activation="relu", padding="same")(pool1)
         conv4 = Conv2D(64,(3,3),activation="relu", padding="same")(conv3)
-        pool2 = MaxPooling2D(pool_size=(2,2))(conv4)    
-        
+        pool2 = MaxPooling2D(pool_size=(2,2))(conv4)
+
         conv5 = Conv2D(128,(3,3),activation="relu", padding="same")(pool2)
         conv6 = Conv2D(128,(3,3),activation="relu", padding="same")(conv5)
         pool3 = MaxPooling2D(pool_size=(2,2))(conv6)
-        
+
         flat = Flatten()(pool3)
         dense1 = Dense(units=128, activation ="sigmoid")(flat)
     #     drop1 = Dropout(rate=0.2)(dense1)
         output = Dense(units=10, activation ="softmax")(dense1)
         classifier = Model(inputs = inputs, outputs = output)
-    
+
     # Compile classifier and adding optimizer
-    classifier.compile(optimizer=tf.keras.optimizers.Adam(1e-03), 
+    classifier.compile(optimizer=tf.keras.optimizers.Adam(1e-03),
                         loss = ["categorical_crossentropy"],
                         metrics=["accuracy",tf.keras.metrics.Recall(),tf.keras.metrics.Precision()])
-    
+
     return classifier
 
 def get_classifier(dataset: str, mode: str, data = "", save_model: bool = False):
@@ -111,8 +111,9 @@ def get_classifier(dataset: str, mode: str, data = "", save_model: bool = False)
     Args:
         dataset (str): String of either MNIST or CIFAR10
         mode (str): either load or train
-        data (str, optional): If train is chosen, contains all data as tuple (x_train, y_train, x_test, y_test). Defaults to "".
-        save_model (bool, optional): Flag if model should be saved in current folder. Defaults to False.
+        data (str, optional): If train is chosen, contains all data as tuple 
+                            (x_train, y_train, x_test, y_test). Defaults to "".
+        save_model (bool, optional): Flag if model should be saved in current folder.
 
     Raises:
         ValueError: Invalid dataset
@@ -127,7 +128,7 @@ def get_classifier(dataset: str, mode: str, data = "", save_model: bool = False)
         raise ValueError("Invalid dataset chosen")
     if mode not in ["load", "train"]:
         raise ValueError("Invalid mode chosen")
-    
+
     if mode == "train":
         # First we check if the data was entered as tuple
         if type(data) != tuple:
@@ -162,19 +163,17 @@ def get_classifier(dataset: str, mode: str, data = "", save_model: bool = False)
                 vertical_flip=False)  # randomly flip images
         datagen.fit(x_train)
 
-        # Path to model
-        model_path = os.path.join("models", dataset, "model1.ckpt")
-        model_dir = os.path.dirname(model_path)
-
         # Some configs for the datasets
         batch_size = {"MNIST": 2000, "CIFAR10": 500}[dataset]
         epochs = {"MNIST": 10, "CIFAR10": 30}[dataset]
 
         # Learning loop with collecting history
         print("Starting training loop ...")
-        hist =  classifier.fit(datagen.flow(x_train[train], y_train[train], batch_size=batch_size), epochs = epochs,
+        hist =  classifier.fit(datagen.flow(x_train[train], y_train[train],
+                                        batch_size=batch_size),
+                                        epochs = epochs,
                                         validation_data = (x_train[val,:], y_train[val,:]))
-        
+
         print("Extracting history ...")
         keys = hist.history.keys()
         history = pd.DataFrame(hist.history[[i for i in keys if i.startswith("val_loss")][0]])
@@ -188,7 +187,9 @@ def get_classifier(dataset: str, mode: str, data = "", save_model: bool = False)
         history["val_accuracy"] = hist.history[[i for i in keys if i.startswith("val_accuracy")][0]]
         history.plot(title = f"Training results on dataset {dataset}")
         y_pred = classifier.predict(x_test)
-        print(f"The F1-Score on x_test is :{f1_score(np.argmax(y_test, axis = 1), np.argmax(get_onehot_argmax(y_pred,10), axis = 1), average = 'macro')}")
+        print("The F1-Score on x_test is :" +str({f1_score(np.argmax(y_test, axis = 1),\
+                                            np.argmax(get_onehot_argmax(y_pred,10),axis = 1),\
+                                            average = 'macro')}))
 
         if save_model:
             print("Saving model ...")
@@ -196,7 +197,7 @@ def get_classifier(dataset: str, mode: str, data = "", save_model: bool = False)
     elif mode == "load":
         print("Loading model ...")
         classifier = tf.keras.models.load_model(f"{dataset}.hdf5")
-        
+
     return classifier
 
 
