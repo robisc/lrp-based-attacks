@@ -4,6 +4,11 @@ from tensorflow.python.ops import gen_nn_ops
 from keras import backend as K
 
 class LrpExplainer:
+    """
+    This class implements an LrpExplainer containing functions to
+        - Calculate LRP R matrizes (self.relprop)
+        - Calculate adversarial attacks (self.flip_attack, ...)
+    """
 
     def __init__(self, model, process, a, b, verbose):
         self.process = process
@@ -13,7 +18,7 @@ class LrpExplainer:
         self.verbose = verbose
         self.eps = 1e-16
 
-    def check_bool(self, x):
+    def __check_bool(self, x):
         """returns true, if either a single bool variable or an array of bools contains any true value 
 
         Args:
@@ -27,18 +32,14 @@ class LrpExplainer:
         else:
             return x
 
-    def div0(self, a, b):
-        #""" ignore / 0, div0( [-1, 0, 1], 0 ) -> [0, 0, 0] """
+    def __div0(self, a, b):
+        #""" ignore / 0, __div0( [-1, 0, 1], 0 ) -> [0, 0, 0] """
         with np.errstate(divide='ignore', invalid='ignore'):
             c = np.true_divide( a, b )
             c[ ~ np.isfinite( c )] = 0  # -inf inf NaN
         return c
 
-    def relu(self, matrix):
-        # Relu implementation returning 0 or the maximum value of a matrix
-        return np.maximum(0,matrix)
-
-    def get_outputs(self, image, model):
+    def __get_outputs(self, image, model):
         # Based on the input data, this function returns all layers' outputs
         outputs = []
         for i in range(0,len(model.layers)):
@@ -47,7 +48,7 @@ class LrpExplainer:
             outputs.append(layer_output([image.reshape(tuple([1]+list(image.shape)))])[0])
         return outputs
 
-    def get_inputs(self, image, model):
+    def __get_inputs(self, image, model):
         # Based on the input data, this function returns all layers' inputs
         inputs = []
         for i in range(0,len(model.layers)):
@@ -56,7 +57,7 @@ class LrpExplainer:
             inputs.append(layer_input([image.reshape(tuple([1]+list(image.shape)))])[0])
         return inputs
 
-    def get_weights(self, model):
+    def __get_weights(self, model):
         # Based on the input data, this function returns all layers' weights
         weights = []
         for i in range(0,len(model.layers)):
@@ -66,7 +67,7 @@ class LrpExplainer:
                 weights.append(None)
         return weights
 
-    def get_biases(self, model):
+    def __get_biases(self, model):
         # Based on the input data, this function returns all layers' biases
         biases = []
         for i in range(0,len(model.layers)):
@@ -82,14 +83,14 @@ class LrpExplainer:
 
     def relprop_lin_0(self, layer, R, inputs, weights, biases):
         Z = np.matmul(inputs[layer],weights[layer]) + biases[layer]
-        S = self.div0(R,Z)
+        S = self.__div0(R,Z)
         C = np.matmul(S,weights[layer].T)
         R = C*inputs[layer]
         return R
 
     def relprop_lin_eps(self, layer, R, inputs, weights, biases): 
         Z = np.matmul(inputs[layer],weights[layer]) + biases[layer] + self.eps 
-        S = self.div0(R,Z)
+        S = self.__div0(R,Z)
         C = np.matmul(S,weights[layer].T)
         R = C*inputs[layer]
         return R
@@ -105,8 +106,8 @@ class LrpExplainer:
         Z_p = Z_p + (np.ones(Z_p.shape)*self.eps)*((Z_p)>0)
         Z_n = np.matmul(inputs[layer],weights[layer]*mask_n)+biases[layer]*(biases[layer]<0)
         Z_n = Z_n - (np.ones(Z_n.shape)*self.eps)*((Z_n)<0)
-        S_p = self.div0(R,Z_p)
-        S_n = self.div0(R,Z_n)
+        S_p = self.__div0(R,Z_p)
+        S_n = self.__div0(R,Z_n)
         C_p = np.matmul(S_p,(weights[layer]*mask_p).T)
         C_n = np.matmul(S_n,(weights[layer]*mask_n).T)
         R = (C_p*inputs[layer]*a+C_n*inputs[layer]*b) 
@@ -162,7 +163,7 @@ class LrpExplainer:
         Z = K.eval(K.conv2d(tf.constant(inputs[layer]),tf.constant(weights[layer]),strides=(1,1), padding=padding))
         Z = Z + biases[layer]*(Z!=0)
         Z = Z + (np.ones(Z.shape)*self.eps)*(Z!=0)
-        S = self.div0(R,Z)
+        S = self.__div0(R,Z)
         C = K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape, weights[layer],S , (1,1,1,1),padding=padding.upper()))
         R = C*inputs[layer]
         return R
@@ -177,7 +178,7 @@ class LrpExplainer:
         Z = K.eval(K.conv2d(tf.constant(inputs[layer]),tf.constant(weights[layer]),strides=(1,1), padding=padding))
         Z = Z - K.eval(K.conv2d(tf.constant(L),tf.constant(W_pos),strides=(1,1), padding=padding))
         Z = Z - K.eval(K.conv2d(tf.constant(H),tf.constant(W_neg),strides=(1,1), padding=padding))
-        S = self.div0(R,Z)
+        S = self.__div0(R,Z)
         
         C = K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape, weights[layer],S, (1,1,1,1),padding=padding.upper() ))
         C_p = K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,W_pos,S, (1,1,1,1),padding=padding.upper() ))
@@ -202,10 +203,10 @@ class LrpExplainer:
         Z_n = Z_n + biases[layer]*(biases[layer]<0)*(Z_n<0)
         Z_n = Z_n - (np.ones(Z_n.shape)*self.eps)*((Z_n)<0)
 
-        S_pp = self.div0(R,Z_pp)
-        S_pn = self.div0(R,Z_pn)
-        S_npn = self.div0(R,Z_npn)
-        S_nnp = self.div0(R,Z_nnp)
+        S_pp = self.__div0(R,Z_pp)
+        S_pn = self.__div0(R,Z_pn)
+        S_npn = self.__div0(R,Z_npn)
+        S_nnp = self.__div0(R,Z_nnp)
 
         C_pp = K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,weights[layer]*(weights[layer]>=0),S_pp, (1,1,1,1),padding=padding.upper() ))*(inputs[layer]*(inputs[layer]>=0))
         C_pn = K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,weights[layer]*(weights[layer]<0),S_pn, (1,1,1,1),padding=padding.upper() ))*(inputs[layer]*(inputs[layer]<0))
@@ -239,10 +240,10 @@ class LrpExplainer:
             if self.process: print(self.process)
             print("###################")
             print("getting values")
-        inputs = self.get_inputs(img, self.model)
-        outputs = self.get_outputs(img, self.model)
-        weights = self.get_weights(self.model)
-        biases = self.get_biases(self.model)
+        inputs = self.__get_inputs(img, self.model)
+        outputs = self.__get_outputs(img, self.model)
+        weights = self.__get_weights(self.model)
+        biases = self.__get_biases(self.model)
         rs = []
         if self.verbose: print("propagating relevance regarding classification: ", np.argmax(R))
         
@@ -502,7 +503,7 @@ class LrpExplainer:
             limit = batch+1
             while i < limit:
                 if flipping_list[-i]>0:
-                    if self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[-i]] < -1)) or self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[-i]] > 1)):
+                    if self.__check_bool((flipped_img[R[0,:,:,:]==flipping_list[-i]] < -1)) or self.__check_bool((flipped_img[R[0,:,:,:]==flipping_list[-i]] > 1)):
                         i = i+1
                         limit = limit+1
                         next
@@ -514,7 +515,7 @@ class LrpExplainer:
             limit = batch+1
             while i < limit:
                 if flipping_list[i]<0:
-                    if self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[i]] < -1)) or self.check_bool((flipped_img[R[0,:,:,:]==flipping_list[i]] > 1)):
+                    if self.__check_bool((flipped_img[R[0,:,:,:]==flipping_list[i]] < -1)) or self.__check_bool((flipped_img[R[0,:,:,:]==flipping_list[i]] > 1)):
                         i = i+1
                         limit = limit+1
                         next
