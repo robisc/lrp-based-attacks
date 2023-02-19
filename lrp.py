@@ -315,8 +315,8 @@ class LrpExplainer:
     def flip_attack(self, img, label, flips, log=False, early_stopping = False):
         if log:
             y_log = []
-            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)))[0][np.argmax(label)])
-            y = self.model.predict(img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
+            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)),verbose = 0)[0][np.argmax(label)])
+            y = self.model.predict(img.reshape([1]+list(img.shape)),verbose = 0)[label.astype(bool).reshape(1,len(label))][0]
             r_log = []
             img_log = []
         flipped_img = img.copy()
@@ -331,7 +331,7 @@ class LrpExplainer:
                 flipping_mask[R==flipping_list[-1]]=True
             flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]*-1
             if log: 
-                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0])
+                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)),verbose = 0)[0])
                 r_log.append(R)
                 temp = flipped_img.copy()
                 img_log.append(temp)
@@ -339,7 +339,7 @@ class LrpExplainer:
                 if log:
                     prediction = y_log[-1]
                 else:
-                    prediction = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0]
+                    prediction = self.model.predict(flipped_img.reshape([1]+list(img.shape)),verbose = 0)[0]
                 if np.argmax(prediction) != np.argmax(label):
                     if log:
                         y_new = prediction
@@ -350,7 +350,7 @@ class LrpExplainer:
                     else:
                         return flipped_img
         if log:
-            y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
+            y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)),verbose = 0)[label.astype(bool).reshape(1,len(label))][0]
             return flipped_img, y, y_new, y_log, r_log, img_log
         else:
             return flipped_img
@@ -358,8 +358,8 @@ class LrpExplainer:
     def flip_attack_batch(self, img, label, flips, batch, log=False, early_stopping = False):
         if log:
             y_log = []
-            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)))[0])
-            y = self.model.predict(img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
+            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)),verbose = 0)[0])
+            y = self.model.predict(img.reshape([1]+list(img.shape)),verbose = 0)[label.astype(bool).reshape(1,len(label))][0]
             r_log = []
             img_log = []
         flipped_img = img.copy()
@@ -375,7 +375,7 @@ class LrpExplainer:
                     flipping_mask[R==flipping_list[-i]]=True
             flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]*-1
             if log: 
-                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0])
+                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)),verbose = 0)[0])
                 r_log.append(R)
                 temp = flipped_img.copy()
                 img_log.append(temp)
@@ -383,14 +383,14 @@ class LrpExplainer:
                 if log:
                     prediction = y_log[-1]
                 else:
-                    prediction = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0]
+                    prediction = self.model.predict(flipped_img.reshape([1]+list(img.shape)),verbose = 0)[0]
                 if np.argmax(prediction) != np.argmax(label):
                     if log:
                         y_new = prediction
                         return flipped_img, y, y_new, y_log, r_log, img_log
                     else:
                         return flipped_img
-        if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
+        if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)),verbose = 0)[label.astype(bool).reshape(1,len(label))][0]
         if log:
             return flipped_img, y, y_new, y_log, r_log, img_log
         else:
@@ -399,8 +399,8 @@ class LrpExplainer:
     def lrp_attack(self, img, label, flips, batch, eps, log=False, early_stopping = False):
         if log:
             y_log = []
-            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)))[0])
-            y = self.model.predict(img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
+            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)),verbose = 0)[0])
+            y = self.model.predict(img.reshape([1]+list(img.shape)),verbose = 0)[label.astype(bool).reshape(1,len(label))][0]
             r_log = []
             img_log = []
         flipped_img = img.copy()
@@ -418,7 +418,7 @@ class LrpExplainer:
                     flipping_mask_one[R==flipping_list[-i]]=True
                     flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]-np.sign(flipped_img[flipping_mask[0,:,:,:]])*eps
             if log: 
-                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0])
+                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)), verbose = 0)[0])
                 r_log.append(R)
                 temp = flipped_img.copy()
                 img_log.append(temp)
@@ -426,14 +426,14 @@ class LrpExplainer:
                 if log:
                     prediction = y_log[-1]
                 else:
-                    prediction = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0]
+                    prediction = self.model.predict(flipped_img.reshape([1]+list(img.shape)), verbose = 0)[0]
                 if np.argmax(prediction) != np.argmax(label):
                     if log:
                         y_new = prediction
                         return flipped_img, y, y_new, y_log, r_log, img_log
                     else:
                         return flipped_img
-        if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
+        if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)), verbose = 0)[label.astype(bool).reshape(1,len(label))][0]
         if log:
             return flipped_img, y, y_new, y_log, r_log, img_log
         else:
@@ -442,8 +442,8 @@ class LrpExplainer:
     def flip_attack_targeted(self, img, target, flips, log=False):
         if log:
             y_log = []
-            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)))[0])
-            y = self.model.predict(img.reshape([1]+list(img.shape)))[target.astype(bool).reshape(1,len(target))][0]
+            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)), verbose = 0)[0])
+            y = self.model.predict(img.reshape([1]+list(img.shape)), verbose = 0)[target.astype(bool).reshape(1,len(target))][0]
             r_log = []
             img_log = []
         flipped_img = img.copy()
@@ -458,11 +458,11 @@ class LrpExplainer:
                 flipping_mask[R==flipping_list[-1]]=True
             flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]*-1
             if log:
-                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0])
+                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)), verbose = 0)[0])
                 r_log.append(R)
                 temp = flipped_img.copy()
                 img_log.append(temp)
-        if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[target.astype(bool).reshape(1,len(target))][0]
+        if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)), verbose = 0)[target.astype(bool).reshape(1,len(target))][0]
         if log:
             return flipped_img, y, y_new, y_log, r_log, img_log
         else:
@@ -483,8 +483,8 @@ class LrpExplainer:
     def lrp_attack_batch_grad(self, img, label, flips, batch, eps, log=False, early_stopping = False):
         if log:
             y_log = []
-            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)))[0])
-            y = self.model.predict(img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
+            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)), verbose = 0)[0])
+            y = self.model.predict(img.reshape([1]+list(img.shape)), verbose = 0)[label.astype(bool).reshape(1,len(label))][0]
             r_log = []
             img_log = []
         flipped_img = img.copy()
@@ -522,7 +522,7 @@ class LrpExplainer:
             flipped_img[flipping_mask[0,:,:,:]]= flipped_img[flipping_mask[0,:,:,:]]+pattern[flipping_mask[:,:,:]]*eps
             flipped_img = np.clip(flipped_img, -1, 1)
             if log: 
-                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0])
+                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)), verbose = 0)[0])
                 r_log.append(R)
                 temp = flipped_img.copy()
                 img_log.append(temp)
@@ -530,14 +530,14 @@ class LrpExplainer:
                 if log:
                     prediction = y_log[-1]
                 else:
-                    prediction = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0]
+                    prediction = self.model.predict(flipped_img.reshape([1]+list(img.shape)), verbose = 0)[0]
                 if np.argmax(prediction) != np.argmax(label):
                     if log:
                         y_new = prediction
                         return flipped_img, y, y_new, y_log, r_log, img_log
                     else:
                         return flipped_img
-        if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
+        if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)), verbose = 0)[label.astype(bool).reshape(1,len(label))][0]
         if log:
             return flipped_img, y, y_new, y_log, r_log, img_log
         else:
@@ -546,8 +546,8 @@ class LrpExplainer:
     def ifgsm_attack(self, img, label, flips, eps, log=False, early_stopping = False):
         if log:
             y_log = []
-            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)))[0])
-            y = self.model.predict(img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
+            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)), verbose = 0)[0])
+            y = self.model.predict(img.reshape([1]+list(img.shape)), verbose = 0)[label.astype(bool).reshape(1,len(label))][0]
             r_log = []
             img_log = []
         flipped_img = img.copy()
@@ -558,7 +558,7 @@ class LrpExplainer:
             flipped_img = flipped_img + pattern*eps
             flipped_img = np.clip(flipped_img, -1, 1)
             if log: 
-                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0])
+                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)), verbose = 0)[0])
                 temp = flipped_img.copy()
                 img_log.append(temp)
                 r_log.append(_.numpy())
@@ -566,14 +566,14 @@ class LrpExplainer:
                 if log:
                     prediction = y_log[-1]
                 else:
-                    prediction = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0]
+                    prediction = self.model.predict(flipped_img.reshape([1]+list(img.shape)), verbose = 0)[0]
                 if np.argmax(prediction) != np.argmax(label):
                     if log:
                         y_new = prediction
                         return flipped_img, y, y_new, y_log, r_log, img_log
                     else:
                         return flipped_img
-        if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
+        if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)), verbose = 0)[label.astype(bool).reshape(1,len(label))][0]
         if log:
             return flipped_img, y, y_new, y_log, r_log, img_log
         else:
@@ -582,8 +582,8 @@ class LrpExplainer:
     def lrp_attack_mean_batch(self, img, label, flips, batch, eps, log=False, early_stopping = False):
         if log:
             y_log = []
-            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)))[0])
-            y = self.model.predict(img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
+            y_log.append(self.model.predict(img.reshape([1]+list(img.shape)), verbose = 0)[0])
+            y = self.model.predict(img.reshape([1]+list(img.shape)), verbose = 0)[label.astype(bool).reshape(1,len(label))][0]
             r_log = []
             img_log = []
         flipped_img = img.copy()
@@ -602,7 +602,7 @@ class LrpExplainer:
                 flipped_img[flipping_mask[0,:,:,i]]= flipped_img[flipping_mask[0,:,:,i]] + np.sign(means[i] - flipped_img[flipping_mask[0,:,:,i]])*eps
             flipped_img = np.clip(flipped_img, -1, 1)
             if log: 
-                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0])
+                y_log.append(self.model.predict(flipped_img.reshape([1]+list(img.shape)), verbose = 0)[0])
                 r_log.append(R)
                 temp = flipped_img.copy()
                 img_log.append(temp)
@@ -610,14 +610,14 @@ class LrpExplainer:
                 if log:
                     prediction = y_log[-1]
                 else:
-                    prediction = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[0]
+                    prediction = self.model.predict(flipped_img.reshape([1]+list(img.shape)), verbose = 0)[0]
                 if np.argmax(prediction) != np.argmax(label):
                     if log:
                         y_new = prediction
                         return flipped_img, y, y_new, y_log, r_log, img_log
                     else:
                         return flipped_img
-        if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)))[label.astype(bool).reshape(1,len(label))][0]
+        if log: y_new = self.model.predict(flipped_img.reshape([1]+list(img.shape)), verbose = 0)[label.astype(bool).reshape(1,len(label))][0]
         if log:
             return flipped_img, y, y_new, y_log, r_log, img_log
         else:
