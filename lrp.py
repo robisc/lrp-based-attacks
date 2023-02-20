@@ -81,21 +81,21 @@ class LrpExplainer:
     # The choice what rule is used per layer is done in the LRP process
     # For the basic lrp-rules, https://git.tu-berlin.de/gmontavon/lrp-tutorial was used as inspiration
 
-    def relprop_lin_0(self, layer, R, inputs, weights, biases):
+    def __relprop_lin_0(self, layer, R, inputs, weights, biases):
         Z = np.matmul(inputs[layer],weights[layer]) + biases[layer]
         S = self.__div0(R,Z)
         C = np.matmul(S,weights[layer].T)
         R = C*inputs[layer]
         return R
 
-    def relprop_lin_eps(self, layer, R, inputs, weights, biases): 
+    def __relprop_lin_eps(self, layer, R, inputs, weights, biases): 
         Z = np.matmul(inputs[layer],weights[layer]) + biases[layer] + self.eps 
         S = self.__div0(R,Z)
         C = np.matmul(S,weights[layer].T)
         R = C*inputs[layer]
         return R
 
-    def relprop_lin_ab(self, layer, R, inputs, outputs, weights, biases, a, b):
+    def __relprop_lin_ab(self, layer, R, inputs, outputs, weights, biases, a, b):
         old_err_state = np.seterr(divide='raise')
         ignored_states = np.seterr(**old_err_state)
         mask_p = weights[layer].copy()
@@ -113,10 +113,10 @@ class LrpExplainer:
         R = (C_p*inputs[layer]*a+C_n*inputs[layer]*b) 
         return R
 
-    def relprop_flatten(self, layer,R, inputs):
+    def __relprop_flatten(self, layer,R, inputs):
         return R.reshape(inputs[layer].shape)
 
-    def relprop_pooling_avg(self, layer, R, inputs, outputs, model):
+    def __relprop_pooling_avg(self, layer, R, inputs, outputs, model):
         pool_height, pool_width = model.layers[layer].get_config()["pool_size"]
         stride_up, stride_side = model.layers[layer].get_config()["strides"]
         placeholder = np.zeros(inputs[layer].shape)
@@ -128,7 +128,7 @@ class LrpExplainer:
         R = placeholder
         return R
         
-    def relprop_pooling(self, layer, R, inputs, outputs, model):
+    def __relprop_pooling(self, layer, R, inputs, outputs, model):
         pool_height, pool_width = model.layers[layer].get_config()["pool_size"]
         stride_up, stride_side = model.layers[layer].get_config()["strides"]
         placeholder = np.zeros(inputs[layer].shape)
@@ -142,7 +142,7 @@ class LrpExplainer:
         R = placeholder
         return R
 
-    def relprop_pooling1(self, layer, R, inputs, outputs, model):
+    def __relprop_pooling1(self, layer, R, inputs, outputs, model):
         # Returns the identical values as relprop_pooling, however works faster due to utilizing Keras functions
         pool_s = tuple([1]+list(model.layers[layer].get_config()["pool_size"])+[1])
         padding = model.layers[layer].get_config()["padding"]
@@ -150,7 +150,7 @@ class LrpExplainer:
         R = placeholder
         return R
 
-    def relprop_pooling1_avg(self, layer, R, inputs, outputs, model):
+    def __relprop_pooling1_avg(self, layer, R, inputs, outputs, model):
         # Returns the identical values as relprop_pooling_avg, however works faster due to utilizing Keras functions
         pool_s = tuple([1]+list(model.layers[layer].get_config()["pool_size"])+[1])
         padding = model.layers[layer].get_config()["padding"]
@@ -158,7 +158,7 @@ class LrpExplainer:
         R = placeholder
         return R
 
-    def relprop_conv2d_eps(self, layer, R, inputs, weights, biases, model):
+    def __relprop_conv2d_eps(self, layer, R, inputs, weights, biases, model):
         padding = model.layers[layer].get_config()["padding"]
         Z = K.eval(K.conv2d(tf.constant(inputs[layer]),tf.constant(weights[layer]),strides=(1,1), padding=padding))
         Z = Z + biases[layer]*(Z!=0)
@@ -168,7 +168,7 @@ class LrpExplainer:
         R = C*inputs[layer]
         return R
 
-    def relprop_conv2d_first(self, layer, R, inputs, weights, biases, model):
+    def __relprop_conv2d_first(self, layer, R, inputs, weights, biases, model):
         X = inputs[layer]
         L = inputs[layer]*0 + -1 #-1
         H = inputs[layer]*0 + 1
@@ -186,7 +186,7 @@ class LrpExplainer:
         R = C*inputs[layer] - C_p*L - C_n*H
         return R
 
-    def relprop_conv2d_ab(self, layer, R, inputs, weights, biases, model, a, b):
+    def __relprop_conv2d_ab(self, layer, R, inputs, weights, biases, model, a, b):
         padding = model.layers[layer].get_config()["padding"]
 
         Z_pp = K.eval(K.conv2d(tf.constant(inputs[layer] * (inputs[layer]>=0)),tf.constant(weights[layer] * (weights[layer]>=0)),strides=(1,1), padding=padding))
@@ -220,7 +220,7 @@ class LrpExplainer:
         R = (C_p*a+C_n*b)
         return R
 
-    def relprop_batch_norm(self, layer, R, inputs, outputs, model):
+    def __relprop_batch_norm(self, layer, R, inputs, outputs, model):
         weights = model.layers[layer].get_weights()
         gamma = weights[0]
         beta = weights[1]
@@ -250,12 +250,12 @@ class LrpExplainer:
         for i in range(-1,-len(self.model.layers),-1):
             if (i-1 == -len(self.model.layers)):
                 if not self.process:
-                    R = self.relprop_conv2d_first(i, R, inputs, weights, biases, self.model) 
+                    R = self.__relprop_conv2d_first(i, R, inputs, weights, biases, self.model) 
                 else:
                     if self.process[i] == "final":
-                        R = self.relprop_conv2d_first(i, R, inputs, weights, biases, self.model)
+                        R = self.__relprop_conv2d_first(i, R, inputs, weights, biases, self.model)
                     elif self.process[i] == "ab":
-                        R = self.relprop_conv2d_ab(i, R, inputs, weights, biases, self.model, self.a, self.b)
+                        R = self.__relprop_conv2d_ab(i, R, inputs, weights, biases, self.model, self.a, self.b)
                 if self.verbose: print("In first layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
                 rs.append(R)
                 break
@@ -263,46 +263,46 @@ class LrpExplainer:
             elif "Dense" in str(self.model.layers[i]):
                 if not self.process:
                     if self.verbose: print("Default ab Rule for dense used")
-                    R = self.relprop_lin_ab(i, R, inputs, outputs, weights, biases, self.a, self.b) #ab
+                    R = self.__relprop_lin_ab(i, R, inputs, outputs, weights, biases, self.a, self.b) #ab
                 else:
                     if self.process[i] == "eps":
-                        R = self.relprop_lin_eps(i, R, inputs, weights, biases)
+                        R = self.__relprop_lin_eps(i, R, inputs, weights, biases)
                     elif self.process[i] == "0":
-                        R = self.relprop_lin_0(i, R, inputs, weights, biases)
+                        R = self.__relprop_lin_0(i, R, inputs, weights, biases)
                     else:
-                        R = self.relprop_lin_ab(i, R, inputs, outputs, weights, biases, self.a, self.b) #ab
+                        R = self.__relprop_lin_ab(i, R, inputs, outputs, weights, biases, self.a, self.b) #ab
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             elif "Flatten" in str(self.model.layers[i]):
-                R = self.relprop_flatten(i , R, inputs)
+                R = self.__relprop_flatten(i , R, inputs)
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             elif "MaxPool" in str(self.model.layers[i]):
                 if not self.process:
-                    R = self.relprop_pooling1(i ,R , inputs, outputs, self.model)
+                    R = self.__relprop_pooling1(i ,R , inputs, outputs, self.model)
                 else:
                     if self.process[i] == "avg":
-                        R = self.relprop_pooling1_avg(i ,R , inputs, outputs, self.model)
+                        R = self.__relprop_pooling1_avg(i ,R , inputs, outputs, self.model)
                     else:
-                        R = self.relprop_pooling1(i ,R , inputs, outputs, self.model)
+                        R = self.__relprop_pooling1(i ,R , inputs, outputs, self.model)
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             elif "AveragePool" in str(self.model.layers[i]):
-                R = self.relprop_pooling1_avg(i ,R , inputs, outputs, self.model)
+                R = self.__relprop_pooling1_avg(i ,R , inputs, outputs, self.model)
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             elif "Conv2D" in str(self.model.layers[i]):
                 if not self.process:
-                    R = self.relprop_conv2d_ab(i, R, inputs, weights, biases, self.model, self.a, self.b)
+                    R = self.__relprop_conv2d_ab(i, R, inputs, weights, biases, self.model, self.a, self.b)
                 else:
                     
                     if self.process[i] == "eps":
-                        R = self.relprop_conv2d_eps(i, R, inputs, weights, biases, self.model)
+                        R = self.__relprop_conv2d_eps(i, R, inputs, weights, biases, self.model)
                     elif self.process[i] == "wpn":
                         R = self.relprop_conv2d_wpn(i, R, inputs, weights, biases, self.model, self.a, self.b)
                     else:
-                        R = self.relprop_conv2d_ab(i, R, inputs, weights, biases, self.model, self.a, self.b)
+                        R = self.__relprop_conv2d_ab(i, R, inputs, weights, biases, self.model, self.a, self.b)
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             elif "Dropout" in str(self.model.layers[i]):
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             elif "BatchNormalization" in str(self.model.layers[i]):
-                # R = relprop_batch_norm(i, R, inputs, outputs, model)
+                # R = __relprop_batch_norm(i, R, inputs, outputs, model)
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             rs.append(R)
         rs.reverse()
