@@ -42,38 +42,40 @@ class LrpExplainer:
     def __get_outputs(self, image, model):
         # Based on the input data, this function returns all layers' outputs
         outputs = []
-        for i in range(0,len(model.layers)):
-            layer_output = K.function([model.layers[0].input],
-                                        [model.layers[i].output])
+        input_layer = model.layers[0]
+        for layer in model.layers:
+            layer_output = K.function([input_layer.input],
+                                        [layer.output])
             outputs.append(layer_output([image.reshape(tuple([1]+list(image.shape)))])[0])
         return outputs
 
     def __get_inputs(self, image, model):
         # Based on the input data, this function returns all layers' inputs
         inputs = []
-        for i in range(0,len(model.layers)):
-            layer_input = K.function([model.layers[0].input],
-                                        [model.layers[i].input])
+        input_layer = model.layers[0]
+        for layer in model.layers:
+            layer_input = K.function([input_layer.input],
+                                        [layer.input])
             inputs.append(layer_input([image.reshape(tuple([1]+list(image.shape)))])[0])
         return inputs
 
     def __get_weights(self, model):
         # Based on the input data, this function returns all layers' weights
         weights = []
-        for i in range(0,len(model.layers)):
+        for layer in model.layers:
             try:
-                weights.append(model.layers[i].get_weights()[0])
-            except: 
+                weights.append(layer.get_weights()[0])
+            except:
                 weights.append(None)
         return weights
 
     def __get_biases(self, model):
         # Based on the input data, this function returns all layers' biases
         biases = []
-        for i in range(0,len(model.layers)):
+        for layer in model.layers:
             try:
-                biases.append(model.layers[i].get_weights()[1])
-            except: 
+                biases.append(layer.get_weights()[1])
+            except:
                 biases.append(None)
         return biases
 
