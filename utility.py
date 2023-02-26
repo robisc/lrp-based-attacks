@@ -1,4 +1,3 @@
-import os
 import pytest
 import tensorflow as tf
 import numpy as np
