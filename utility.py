@@ -65,13 +65,13 @@ def create_cnn(dataset: str):
         inputs =  Input(shape=(28,28,1))
         conv1 = Conv2D(32,(3,3),activation="relu", padding="same")(inputs)
         conv2 = Conv2D(32,(3,3),activation="relu", padding="same")(conv1)
-    #     bn1 = BatchNormalization()(conv2) # remove
-        pool1 = MaxPooling2D(pool_size=(2,2))(conv2)
+        bn1 = BatchNormalization()(conv2) # remove
+        pool1 = MaxPooling2D(pool_size=(2,2))(bn1)
 
         conv3 = Conv2D(64,(3,3),activation="relu", padding="same")(pool1)
         conv4 = Conv2D(64,(3,3),activation="relu", padding="same")(conv3)
-    #     bn2 = BatchNormalization()(conv4) # remove
-        pool2 = MaxPooling2D(pool_size=(2,2))(conv4)
+        bn2 = BatchNormalization()(conv4) # remove
+        pool2 = MaxPooling2D(pool_size=(2,2))(bn2)
 
         flat = Flatten()(pool2)
         dense1 = Dense(units=128, activation ="sigmoid")(flat)
@@ -81,11 +81,13 @@ def create_cnn(dataset: str):
         inputs =  Input(shape=(32,32,3))
         conv1 = Conv2D(32,(3,3),activation="relu", padding="same")(inputs)
         conv2 = Conv2D(32,(3,3),activation="relu", padding="same")(conv1)
-        pool1 = MaxPooling2D(pool_size=(2,2))(conv2)
+        bn1 = BatchNormalization()(conv2) # remove
+        pool1 = MaxPooling2D(pool_size=(2,2))(bn1)
 
         conv3 = Conv2D(64,(3,3),activation="relu", padding="same")(pool1)
         conv4 = Conv2D(64,(3,3),activation="relu", padding="same")(conv3)
-        pool2 = MaxPooling2D(pool_size=(2,2))(conv4)
+        bn2 = BatchNormalization()(conv4) # remove
+        pool2 = MaxPooling2D(pool_size=(2,2))(bn2)
 
         conv5 = Conv2D(128,(3,3),activation="relu", padding="same")(pool2)
         conv6 = Conv2D(128,(3,3),activation="relu", padding="same")(conv5)
