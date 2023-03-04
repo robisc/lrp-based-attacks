@@ -227,12 +227,10 @@ class LrpExplainer:
         gamma = weights[0]
         beta = weights[1]
         mean = weights[2]
-        std = weights[3]
-        s = gamma/np.sqrt(std**2 + 0.001)
-        x_dash = inputs[layer]-mean
-        x_dash2 = x_dash * s
-        z = x_dash2 + beta
-        return inputs[layer] * s * R / z
+        var = weights[3]
+        x_norm = (inputs[layer]-mean) / np.sqrt(var**2 + 1e-6)
+        x_scaled = x_norm * gamma + beta
+        return inputs[layer] * R * (gamma / (x_scaled + 1e-6))
 
     # Relevance propagation process from here on out
 
@@ -304,7 +302,7 @@ class LrpExplainer:
             elif "Dropout" in str(self.model.layers[i]):
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             elif "BatchNormalization" in str(self.model.layers[i]):
-                # R = __relprop_batch_norm(i, R, inputs, outputs, model)
+                R = self.__relprop_batch_norm(i, R, inputs, outputs, self.model)
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             rs.append(R)
         rs.reverse()
