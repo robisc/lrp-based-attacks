@@ -105,7 +105,7 @@ class LrpExplainer:
         mask_n = weights[layer].copy()
         mask_n = np.array(list(map(lambda x: (inputs[layer] * x)<0,mask_n.T))).T.reshape(weights[layer].shape)
         Z_p = np.matmul(inputs[layer],weights[layer]*mask_p)+biases[layer]*(biases[layer]>=0)
-        Z_p = Z_p + (np.ones(Z_p.shape)*self.eps)*((Z_p)>0)
+        Z_p = Z_p + (np.ones(Z_p.shape)*self.eps)*((Z_p)>=0)
         Z_n = np.matmul(inputs[layer],weights[layer]*mask_n)+biases[layer]*(biases[layer]<0)
         Z_n = Z_n - (np.ones(Z_n.shape)*self.eps)*((Z_n)<0)
         S_p = self.__div0(R,Z_p)
@@ -193,15 +193,13 @@ class LrpExplainer:
 
         Z_pp = K.eval(K.conv2d(tf.constant(inputs[layer] * (inputs[layer]>=0)),tf.constant(weights[layer] * (weights[layer]>=0)),strides=(1,1), padding=padding))
         Z_pn = K.eval(K.conv2d(tf.constant(inputs[layer] * (inputs[layer]<0)),tf.constant(weights[layer] * (weights[layer]<0)),strides=(1,1), padding=padding))
-
         Z_p = Z_pp + Z_pn
-
         Z_p = Z_p + biases[layer]*(biases[layer]>=0)*(Z_p>=0)
         Z_p = Z_p + (np.ones(Z_p.shape)*self.eps)*((Z_p)>=0)
+
         Z_npn = K.eval(K.conv2d(tf.constant(inputs[layer] * (inputs[layer]>=0)),tf.constant(weights[layer] * (weights[layer]<0)),strides=(1,1), padding=padding))
         Z_nnp = K.eval(K.conv2d(tf.constant(inputs[layer] * (inputs[layer]<0)),tf.constant(weights[layer] * (weights[layer]>=0)),strides=(1,1), padding=padding))
         Z_n = Z_npn + Z_nnp
-
         Z_n = Z_n + biases[layer]*(biases[layer]<0)*(Z_n<0)
         Z_n = Z_n - (np.ones(Z_n.shape)*self.eps)*((Z_n)<0)
 
@@ -210,32 +208,47 @@ class LrpExplainer:
         S_npn = self.__div0(R,Z_npn)
         S_nnp = self.__div0(R,Z_nnp)
 
-        C_pp = K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,weights[layer]*(weights[layer]>=0),S_pp, (1,1,1,1),padding=padding.upper() ))*(inputs[layer]*(inputs[layer]>=0))
-        C_pn = K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,weights[layer]*(weights[layer]<0),S_pn, (1,1,1,1),padding=padding.upper() ))*(inputs[layer]*(inputs[layer]<0))
+        C_pp = K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,weights[layer]*(weights[layer]>=0),
+                                                            S_pp, (1,1,1,1),padding=padding.upper() ))*(inputs[layer]*(inputs[layer]>=0))
+        C_pn = K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,weights[layer]*(weights[layer]<0),
+                                                            S_pn, (1,1,1,1),padding=padding.upper() ))*(inputs[layer]*(inputs[layer]<0))
 
-        C_npn = K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,weights[layer]*(weights[layer]<0),S_npn, (1,1,1,1),padding=padding.upper() ))*(inputs[layer]*(inputs[layer]>=0))
-        C_nnp = K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,weights[layer]*(weights[layer]>=0),S_nnp, (1,1,1,1),padding=padding.upper() ))*(inputs[layer]*(inputs[layer]<0))
+        C_npn = K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,weights[layer]*(weights[layer]<0),
+                                                            S_npn, (1,1,1,1),padding=padding.upper() ))*(inputs[layer]*(inputs[layer]>=0))
+        C_nnp = K.eval(tf.compat.v1.nn.conv2d_backprop_input(inputs[layer].shape,weights[layer]*(weights[layer]>=0),
+                                                            S_nnp, (1,1,1,1),padding=padding.upper() ))*(inputs[layer]*(inputs[layer]<0))
 
         C_p = C_pp + C_pn
+        if C_pn.sum() != 0:
+            C_p = C_p/2
         C_n = C_npn + C_nnp
+        if C_nnp.sum() != 0:
+            C_n = C_n/2
 
         R = (C_p*a+C_n*b)
         return R
 
     def __relprop_batch_norm(self, layer, R, inputs, outputs, model):
-        weights = model.layers[layer].get_weights()
-        gamma = weights[0]
-        beta = weights[1]
-        mean = weights[2]
-        var = weights[3]
-        x_norm = (inputs[layer]-mean) / np.sqrt(var**2 + 1e-6)
+        gamma = model.layers[layer].gamma
+        beta = model.layers[layer].beta
+        mean = model.layers[layer].moving_mean
+        var = model.layers[layer].moving_variance
+        x_norm = self.__div0((inputs[layer]-mean) , np.sqrt(var + 1e-6))
         x_scaled = x_norm * gamma + beta
-        return inputs[layer] * R * (gamma / (x_scaled + 1e-6))
-
-    # Relevance propagation process from here on out
+        ret = inputs[layer] * R * self.__div0(gamma , (x_scaled + 1e-6))
+        return ret
 
     def relprop(self, img, R):
-        if self.verbose: 
+        """Actual relevance propagation function
+
+        Args:
+            img (_type_): Input image in same shape as for predict function
+            R (_type_): Initial output of your classifier
+
+        Returns:
+            _type_: Relevance matrix, in shape of input image
+        """
+        if self.verbose:
             print("calculating LRP of ",str(self.model))
             if self.process: print(self.process)
             print("###################")
@@ -246,7 +259,6 @@ class LrpExplainer:
         biases = self.__get_biases(self.model)
         rs = []
         if self.verbose: print("propagating relevance regarding classification: ", np.argmax(R))
-        
         for i in range(-1,-len(self.model.layers),-1):
             if (i-1 == -len(self.model.layers)):
                 if not self.process:
@@ -291,7 +303,6 @@ class LrpExplainer:
                 if not self.process:
                     R = self.__relprop_conv2d_ab(i, R, inputs, weights, biases, self.model, self.a, self.b)
                 else:
-                    
                     if self.process[i] == "eps":
                         R = self.__relprop_conv2d_eps(i, R, inputs, weights, biases, self.model)
                     elif self.process[i] == "wpn":
@@ -302,7 +313,6 @@ class LrpExplainer:
             elif "Dropout" in str(self.model.layers[i]):
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             elif "BatchNormalization" in str(self.model.layers[i]):
-                R = self.__relprop_batch_norm(i, R, inputs, outputs, self.model)
                 if self.verbose: print("In layer ",i," : ",self.model.layers[i]," check-value: ", np.sum(R))
             rs.append(R)
         rs.reverse()
