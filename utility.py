@@ -65,13 +65,13 @@ def create_cnn(dataset: str):
         inputs =  Input(shape=(28,28,1))
         conv1 = Conv2D(32,(3,3),activation="relu", padding="same")(inputs)
         conv2 = Conv2D(32,(3,3),activation="relu", padding="same")(conv1)
-        bn1 = BatchNormalization()(conv2) # remove
-        pool1 = MaxPooling2D(pool_size=(2,2))(bn1)
+#        bn1 = BatchNormalization()(conv2) # remove
+        pool1 = MaxPooling2D(pool_size=(2,2))(conv2)
 
         conv3 = Conv2D(64,(3,3),activation="relu", padding="same")(pool1)
         conv4 = Conv2D(64,(3,3),activation="relu", padding="same")(conv3)
-        bn2 = BatchNormalization()(conv4) # remove
-        pool2 = MaxPooling2D(pool_size=(2,2))(bn2)
+#        bn2 = BatchNormalization()(conv4) # remove
+        pool2 = MaxPooling2D(pool_size=(2,2))(conv4)
 
         flat = Flatten()(pool2)
         dense1 = Dense(units=128, activation ="sigmoid")(flat)
@@ -166,7 +166,7 @@ def get_classifier(dataset: str, mode: str, data = "", save_model: bool = False)
 
         # Some configs for the datasets
         batch_size = {"MNIST": 2000, "CIFAR10": 500}[dataset]
-        epochs = {"MNIST": 10, "CIFAR10": 30}[dataset]
+        epochs = {"MNIST": 15, "CIFAR10": 30}[dataset]
 
         # Learning loop with collecting history
         print("Starting training loop ...")
