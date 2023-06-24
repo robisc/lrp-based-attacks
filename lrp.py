@@ -325,6 +325,20 @@ class LrpExplainer:
     # attack functions
 
     def flip_attack(self, img, label, flips, log=False, early_stopping = False):
+        """This function creates an adversarial attack by flipping pixels in the image.
+           The function returns the flipped image and the flipped label. 
+           The function also returns the flipped image and label for each flip if log is set to True.
+
+        Args:
+            img (np.array): The original input image
+            label (np.array): The original label or target label
+            flips (int): Number of flips to be maximally done
+            log (bool, optional): When True, function returns additional logs. Defaults to False.
+            early_stopping (bool, optional): When enabled, the function stops as soon as the predicted label changes. Defaults to False.
+
+        Returns:
+            filpped_image (np.array): Adversarial image
+        """
         if log:
             y_log = []
             y_log.append(self.model.predict(img.reshape([1]+list(img.shape)),verbose = 0)[0])

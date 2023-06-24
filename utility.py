@@ -133,7 +133,7 @@ def get_classifier(dataset: str, mode: str, data = "", save_model: bool = False)
     if mode == "train":
         # First we check if the data was entered as tuple
         if type(data) != tuple:
-            raise TypeError("Input datas as tuple")
+            raise TypeError("You have to enter the data as tuple (x_train, y_train, x_test, y_test)")
 
         # Then we create the respective keras model
         print("Creating classifier ...")
