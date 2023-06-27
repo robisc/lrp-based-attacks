@@ -194,10 +194,10 @@ def get_classifier(dataset: str, mode: str, data = "", save_model: bool = False)
 
         if save_model:
             print("Saving model ...")
-            tf.keras.models.save_model(classifier, f"{dataset}.hdf5")
+            tf.keras.models.save_model(classifier, f"./models/{dataset}.hdf5")
     elif mode == "load":
         print("Loading model ...")
-        classifier = tf.keras.models.load_model(f"{dataset}.hdf5")
+        classifier = tf.keras.models.load_model(f"./models/{dataset}.hdf5")
 
     return classifier
 
