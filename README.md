@@ -22,8 +22,4 @@ Libraries used:
 - pandas      1.5.1
 - tensorflow   2.10.0
 
-![image](https://user-images.githubusercontent.com/38880131/218307932-e91d3b45-ffba-4f30-b291-e953762a42bc.png)
-
-Most information can be found in the uploaded pdf of my master thesis or the repo. However please consider this figure for choosing the LRP-process
-
-![image](https://user-images.githubusercontent.com/38880131/218308328-bec62597-5e75-4fd6-b3f3-2f7781998a48.png)
+![](https://github.com/robisc/lrp-based-attacks/blob/master/images/CIFAR10_LRPgrad_example_img.gif)
