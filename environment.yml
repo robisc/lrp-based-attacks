@@ -1,0 +1,12 @@
+name: lrp-based-attacks
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10.8
+  - numpy
+  - pandas
+  - jupyterlab
+  - matplotlib
+  - tensorflow
+  - seaborn
