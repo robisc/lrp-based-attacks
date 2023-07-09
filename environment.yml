@@ -10,3 +10,4 @@ dependencies:
   - matplotlib
   - tensorflow
   - seaborn
+  - scikit-learn
